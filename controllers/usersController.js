@@ -1,7 +1,8 @@
 import usersModels from "../Models/userModels.js";
 import jwt from 'jsonwebtoken';
 import validator from "validator";
-import bcrypt from "bcrypt";
+
+import bcrypt from 'bcryptjs';
 import sendEmail from "../utils/sendEmail.js";
 
 const logoUrl = 'https://res.cloudinary.com/dj3r6un9z/image/upload/v1746557604/tctrl/logo.png';
