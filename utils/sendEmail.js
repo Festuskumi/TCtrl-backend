@@ -1,15 +1,18 @@
 import sgMail from '@sendgrid/mail';
 
-// Load API key securely from .env
+// Securely load SendGrid API key
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
-// Set fallback frontend URL
-const CLIENT_URL = process.env.CLIENT_URL?.trim() || 'https://tctrl.netlify.app';
+// Fallback if CLIENT_URL isn't set
+const CLIENT_URL =
+  (process.env.CLIENT_URL && process.env.CLIENT_URL.startsWith('http'))
+    ? process.env.CLIENT_URL.trim()
+    : 'https://tctrl.netlify.app';
 
 /**
- * Sends a verification email via SendGrid.
- * @param {string} to - Recipient email address
- * @param {string} subject - Email subject line
+ * Sends a styled verification email using SendGrid
+ * @param {string} to - Email recipient
+ * @param {string} subject - Email subject
  * @param {string} token - Unique verification token
  */
 const sendEmail = async (to, subject, token) => {
@@ -17,29 +20,41 @@ const sendEmail = async (to, subject, token) => {
     const verificationLink = `${CLIENT_URL}/verify?token=${encodeURIComponent(token)}`;
 
     const html = `
-      <div style="font-family:Arial,sans-serif; max-width:600px; margin:auto; padding:20px; background:#f9f9f9; border-radius:8px;">
-        <h2 style="color:#000;">Welcome to <span style="color:#e60023;">TCTRL</span>!</h2>
-        <p style="font-size:16px; color:#333;">Click the button below to verify your email and activate your account:</p>
-        <a href="${verificationLink}" style="display:inline-block; margin:20px 0; padding:12px 24px; background-color:#000; color:#fff; text-decoration:none; border-radius:5px; font-weight:bold;">
-          Verify Email
-        </a>
-        <p style="font-size:14px; color:#666;">If you didn’t request this email, you can safely ignore it.</p>
-        <p style="font-size:12px; color:#aaa;">&copy; ${new Date().getFullYear()} TCTRL Fashion</p>
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; background: #fff; padding: 20px; border-radius: 8px; color: #111;">
+        <div style="text-align: center;">
+          <img src="https://res.cloudinary.com/dj3r6un9z/image/upload/v1746557604/tctrl/logo.png" alt="TCTRL Logo" style="width: 80px; margin-bottom: 20px;" />
+        </div>
+        <h2 style="font-size: 22px; margin-bottom: 10px;">Welcome, ${to.split('@')[0]}!</h2>
+        <p style="font-size: 16px; line-height: 1.6;">
+          Thanks for joining <strong>TCTRL</strong> – the ultimate fashion experience.
+          <br/><br/>
+          To complete your registration, please verify your email below:
+        </p>
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${verificationLink}" style="display: inline-block; padding: 12px 24px; background-color: #000; color: #fff; text-decoration: none; border-radius: 5px; font-weight: bold;">
+            Verify Email
+          </a>
+        </div>
+        <p style="font-size: 14px; color: #555;">
+          This link will expire in 24 hours.<br/>
+          If you didn’t request this, you can safely ignore it.
+        </p>
+        <p style="font-size: 12px; text-align: center; color: #aaa;">&copy; ${new Date().getFullYear()} TCTRL Fashion</p>
       </div>
     `;
 
     const msg = {
       to,
-      from: 'tctrl.fashion.ac@outlook.com', // ✅ Must be verified in SendGrid
+      from: 'tctrl.fashion.ac@outlook.com', // ✅ Must match verified sender
       subject,
       html,
     };
 
     await sgMail.send(msg);
-    console.log(`✅ Email sent successfully to ${to}`);
+    console.log(`✅ Verification email sent to ${to}`);
   } catch (error) {
-    const errDetail = error?.response?.body?.errors || error.message;
-    console.error('❌ SendGrid Error:', errDetail);
+    const detail = error?.response?.body?.errors || error.message || error;
+    console.error('❌ SendGrid Error:', detail);
     throw new Error('Failed to send verification email');
   }
 };
