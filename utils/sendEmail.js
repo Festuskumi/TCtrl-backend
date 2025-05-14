@@ -13,9 +13,7 @@ const sendEmail = async (to, subject, code) => {
   try {
     const html = `
   <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; background: #fff; padding: 20px; border-radius: 8px; color: #111;">
-    <div style="text-align: center;">
-      <img src="https://res.cloudinary.com/dj3r6un9z/image/upload/v1746557604/tctrl/logo.png" alt="TCTRL Logo" style="width: 80px; margin-bottom: 20px;" />
-    </div>
+   
     <p style="font-size: 16px; line-height: 1.6;">
       Thanks for joining <strong>TCTRL</strong> – the ultimate fashion experience.
     </p>
