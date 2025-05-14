@@ -1,15 +1,33 @@
 import express from 'express';
-import { Userlogin, UserRegistration, adminLogin, verifyEmail, sendResetCode, verifyResetCode, resetPasswordWithCode } from '../controllers/usersController.js';
+import {
+  UserRegistration,
+  Userlogin,
+  adminLogin,
+  verifyEmail,
+  sendResetCode,
+  verifyResetCode,
+  resetPasswordWithCode
+} from '../controllers/usersController.js';
 
 const usersRouter = express.Router();
 
-usersRouter.post('/register', UserRegistration)
-usersRouter.post('/login', Userlogin)
-usersRouter.post('/admin', adminLogin)
-usersRouter.get('/verify', verifyEmail);
-usersRouter.post('/send-reset-code', sendResetCode);
-usersRouter.post('/verify-reset-code', verifyResetCode);
-usersRouter.post('/reset-password-code', resetPasswordWithCode);
+// ===========================
+// 📦 Public User Auth Routes
+// ===========================
+usersRouter.post('/register', UserRegistration);           // Register user
+usersRouter.post('/login', Userlogin);                     // Login user
+usersRouter.post('/verify-code', verifyEmail);             // Verify email via code
 
+// ===========================
+// 🔐 Admin Authentication
+// ===========================
+usersRouter.post('/admin', adminLogin);                    // Admin login
+
+// ===========================
+// 🔁 Password Reset Workflow
+// ===========================
+usersRouter.post('/send-reset-code', sendResetCode);       // Send reset code
+usersRouter.post('/verify-reset-code', verifyResetCode);   // Verify reset code
+usersRouter.post('/reset-password-code', resetPasswordWithCode); // Reset password
 
 export default usersRouter;

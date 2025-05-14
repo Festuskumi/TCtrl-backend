@@ -1,51 +1,53 @@
 import usersModels from "../Models/userModels.js";
 
+// ----------------------
 // Add product to cart
+// ----------------------
 const addProductToCart = async (req, res) => {
   try {
-    const userId = req.userId; // from userVerify middleware
+    const userId = req.userId;
     const { ItemId, size } = req.body;
 
     if (!userId || !ItemId || !size) {
-      return res.status(400).json({ success: false, message: "Missing required fields" });
+      return res.status(400).json({ success: false, message: "ItemId and size are required" });
     }
 
-    const userDetails = await usersModels.findById(userId);
-    if (!userDetails) {
+    const user = await usersModels.findById(userId);
+    if (!user) {
       return res.status(404).json({ success: false, message: "User not found" });
     }
 
-    const cartDetails = userDetails.cartDetails || {};
-
+    const cartDetails = user.cartDetails || {};
     if (!cartDetails[ItemId]) cartDetails[ItemId] = {};
     cartDetails[ItemId][size] = (cartDetails[ItemId][size] || 0) + 1;
 
     await usersModels.findByIdAndUpdate(userId, { cartDetails });
 
-    res.json({ success: true, message: "Added to cart successfully" });
+    res.json({ success: true, message: "Item added to cart successfully" });
   } catch (error) {
     console.error("Add to cart error:", error.message);
-    res.status(500).json({ success: false, message: error.message });
+    res.status(500).json({ success: false, message: "Internal server error" });
   }
 };
 
-// Update quantity or remove item
+// ----------------------
+// Update cart item quantity or remove item
+// ----------------------
 const updateProductToCart = async (req, res) => {
   try {
-    const userId = req.userId; // from userVerify middleware
+    const userId = req.userId;
     const { ItemId, size, quantity } = req.body;
 
     if (!userId || !ItemId || !size || typeof quantity !== "number") {
-      return res.status(400).json({ success: false, message: "Invalid input" });
+      return res.status(400).json({ success: false, message: "ItemId, size, and numeric quantity are required" });
     }
 
-    const userDetails = await usersModels.findById(userId);
-    if (!userDetails) {
+    const user = await usersModels.findById(userId);
+    if (!user) {
       return res.status(404).json({ success: false, message: "User not found" });
     }
 
-    const cartDetails = userDetails.cartDetails || {};
-
+    const cartDetails = user.cartDetails || {};
     if (!cartDetails[ItemId]) cartDetails[ItemId] = {};
 
     if (quantity <= 0) {
@@ -59,28 +61,29 @@ const updateProductToCart = async (req, res) => {
 
     await usersModels.findByIdAndUpdate(userId, { cartDetails });
 
-    res.json({ success: true, message: "Updated cart successfully" });
+    res.json({ success: true, message: "Cart updated successfully" });
   } catch (error) {
     console.error("Cart update error:", error.message);
-    res.status(500).json({ success: false, message: error.message });
+    res.status(500).json({ success: false, message: "Internal server error" });
   }
 };
 
+// ----------------------
 // Get user cart
+// ----------------------
 const getUserCart = async (req, res) => {
   try {
     const userId = req.userId;
-
     if (!userId) {
       return res.status(400).json({ success: false, message: "User ID required" });
     }
 
-    const userDetails = await usersModels.findById(userId);
-    if (!userDetails) {
+    const user = await usersModels.findById(userId);
+    if (!user) {
       return res.status(404).json({ success: false, message: "User not found" });
     }
 
-    const cartDetails = userDetails.cartDetails || {};
+    const cartDetails = user.cartDetails || {};
     const cartArray = [];
 
     for (const productId in cartDetails) {
@@ -96,60 +99,48 @@ const getUserCart = async (req, res) => {
     res.json({ success: true, cart: cartArray });
   } catch (error) {
     console.error("Get cart error:", error.message);
-    res.status(500).json({ success: false, message: error.message });
+    res.status(500).json({ success: false, message: "Internal server error" });
   }
 };
 
-// Sync local cart with user's cart in database
+// ----------------------
+// Sync local cart to server
+// ----------------------
 const syncCartFromLocal = async (req, res) => {
   try {
     const userId = req.userId;
     const { items } = req.body;
 
-    if (!userId) {
-      return res.status(400).json({ success: false, message: "User ID required" });
+    if (!userId || !Array.isArray(items)) {
+      return res.status(400).json({ success: false, message: "User ID and valid items array required" });
     }
 
-    const userDetails = await usersModels.findById(userId);
-    if (!userDetails) {
+    const user = await usersModels.findById(userId);
+    if (!user) {
       return res.status(404).json({ success: false, message: "User not found" });
     }
 
-    // Get current cart from user model
-    const currentCart = userDetails.cartDetails || {};
-    
-    // Convert items array to cartDetails format and merge with current cart
+    const currentCart = user.cartDetails || {};
     const newCart = { ...currentCart };
-    
-    if (items && items.length > 0) {
-      items.forEach(item => {
-        const { productId, size, quantity } = item;
-        
-        if (!newCart[productId]) {
-          newCart[productId] = {};
-        }
-        
-        // If the item already exists in cart, keep the higher quantity
-        const existingQuantity = newCart[productId][size] || 0;
-        newCart[productId][size] = Math.max(quantity, existingQuantity);
-      });
-    }
 
-    // Update user's cart in database
+    items.forEach(({ productId, size, quantity }) => {
+      if (!newCart[productId]) newCart[productId] = {};
+      const current = newCart[productId][size] || 0;
+      newCart[productId][size] = Math.max(current, quantity);
+    });
+
     await usersModels.findByIdAndUpdate(userId, { cartDetails: newCart });
 
-    res.json({ 
-      success: true, 
-      message: "Cart synchronized successfully" 
-    });
+    res.json({ success: true, message: "Cart synchronized successfully" });
   } catch (error) {
     console.error("Cart sync error:", error.message);
-    res.status(500).json({ 
-      success: false, 
-      message: "Failed to synchronize cart",
-      error: error.message 
-    });
+    res.status(500).json({ success: false, message: "Internal server error" });
   }
 };
 
-export { addProductToCart, updateProductToCart, getUserCart, syncCartFromLocal };
+export {
+  addProductToCart,
+  updateProductToCart,
+  getUserCart,
+  syncCartFromLocal
+};
