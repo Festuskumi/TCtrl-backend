@@ -92,9 +92,9 @@ const sendOrderConfirmationEmail = async (user, order) => {
     `;
 
     await sendEmail(user.email, 'TCTRL Order Confirmation', emailHTML);
-    console.log('✅ Order confirmation email sent successfully');
+    console.log(' Order confirmation email sent successfully');
   } catch (error) {
-    console.error('❌ Failed to send order confirmation email:', error);
+    console.error(' Failed to send order confirmation email:', error);
   }
 };
 
@@ -128,7 +128,7 @@ const placeOrderCOD = async (req, res) => {
 
     res.status(200).json({ success: true, message: 'Order placed successfully (COD)', order });
   } catch (err) {
-    console.error('❌ COD Order Error:', err);
+    console.error(' COD Order Error:', err);
     res.status(500).json({ success: false, message: 'Failed to place order (COD)' });
   }
 };
@@ -206,7 +206,7 @@ const placeOrderStripe = async (req, res) => {
       url: session.url 
     });
   } catch (err) {
-    console.error('❌ Stripe Order Error:', err);
+    console.error(' Stripe Order Error:', err);
     res.status(500).json({ success: false, message: 'Failed to place order (Stripe)' });
   }
 };
@@ -214,7 +214,7 @@ const placeOrderStripe = async (req, res) => {
 // Stripe Webhook Handler - FIXED
 const handleStripeWebhook = async (req, res) => {
   try {
-    console.log('🔔 STRIPE WEBHOOK RECEIVED');
+    console.log(' STRIPE WEBHOOK RECEIVED');
     console.log('Headers:', req.headers);
     console.log('Body type:', typeof req.body);
     console.log('Body is Buffer:', Buffer.isBuffer(req.body));
@@ -227,22 +227,22 @@ const handleStripeWebhook = async (req, res) => {
         // For development, parse JSON directly
         const jsonString = Buffer.isBuffer(rawBody) ? rawBody.toString('utf8') : rawBody;
         event = JSON.parse(jsonString);
-        console.log('📝 Development mode - parsed event type:', event.type);
+        console.log(' Development mode - parsed event type:', event.type);
       } else {
         // For production, verify webhook signature
         const sig = req.headers['stripe-signature'];
         const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
         
         if (!webhookSecret) {
-          console.error('❌ Missing STRIPE_WEBHOOK_SECRET');
+          console.error(' Missing STRIPE_WEBHOOK_SECRET');
           return res.status(500).json({ error: 'Webhook secret not configured' });
         }
         
         event = stripe.webhooks.constructEvent(rawBody, sig, webhookSecret);
-        console.log('🔐 Production mode - verified event type:', event.type);
+        console.log(' Production mode - verified event type:', event.type);
       }
     } catch (parseError) {
-      console.error('❌ Webhook parsing error:', parseError.message);
+      console.error(' Webhook parsing error:', parseError.message);
       return res.status(400).json({ error: 'Invalid webhook payload' });
     }
 
@@ -251,7 +251,7 @@ const handleStripeWebhook = async (req, res) => {
       const session = event.data.object;
       const sessionId = session.id;
       
-      console.log('💳 Processing completed session:', sessionId);
+      console.log(' Processing completed session:', sessionId);
       console.log('Session metadata:', session.metadata);
 
       // Find and update the order
@@ -266,7 +266,7 @@ const handleStripeWebhook = async (req, res) => {
       );
 
       if (order) {
-        console.log('✅ Order updated successfully:', order._id);
+        console.log(' Order updated successfully:', order._id);
         
         // Send confirmation email
         const user = await usersModels.findById(order.userId);
@@ -276,16 +276,16 @@ const handleStripeWebhook = async (req, res) => {
         
         return res.status(200).json({ received: true, updated: true, orderId: order._id });
       } else {
-        console.log('⚠️ No order found for session:', sessionId);
+        console.log(' No order found for session:', sessionId);
         return res.status(200).json({ received: true, updated: false, message: 'Order not found' });
       }
     }
 
-    console.log('ℹ️ Webhook event ignored:', event.type);
+    console.log('ℹ Webhook event ignored:', event.type);
     return res.status(200).json({ received: true, ignored: true, eventType: event.type });
 
   } catch (err) {
-    console.error('❌ Stripe Webhook Error:', err.message);
+    console.error(' Stripe Webhook Error:', err.message);
     console.error('Stack trace:', err.stack);
     return res.status(500).json({ success: false, error: err.message });
   }
@@ -359,7 +359,7 @@ const placeOrderPaypal = async (req, res) => {
     const approvalUrl = paypalOrder.data.links.find(link => link.rel === 'approve')?.href;
     res.status(200).json({ success: true, message: 'PayPal order created', orderId: paypalOrder.data.id, url: approvalUrl });
   } catch (err) {
-    console.error('❌ PayPal Order Error:', err);
+    console.error(' PayPal Order Error:', err);
     res.status(500).json({ success: false, message: 'Failed to place order (PayPal)' });
   }
 };
@@ -397,7 +397,7 @@ const handlePaypalWebhook = async (req, res) => {
 
     res.status(200).json({ received: true });
   } catch (err) {
-    console.error('❌ PayPal Webhook Error:', err);
+    console.error(' PayPal Webhook Error:', err);
     res.status(500).json({ received: false });
   }
 };
@@ -410,7 +410,7 @@ const allOrders = async (req, res) => {
     const orders = await ordersModel.find().sort({ date: -1 });
     res.status(200).json({ success: true, orders });
   } catch (err) {
-    console.error('❌ Fetch All Orders Error:', err);
+    console.error(' Fetch All Orders Error:', err);
     res.status(500).json({ success: false });
   }
 };
@@ -420,7 +420,7 @@ const customersOrders = async (req, res) => {
     const orders = await ordersModel.find({ userId: req.userId }).sort({ date: -1 });
     res.status(200).json({ success: true, orders });
   } catch (err) {
-    console.error('❌ Fetch Customer Orders Error:', err);
+    console.error(' Fetch Customer Orders Error:', err);
     res.status(500).json({ success: false });
   }
 };
@@ -432,7 +432,7 @@ const updateOrderStatus = async (req, res) => {
     if (!updated) return res.status(404).json({ success: false, message: 'Order not found' });
     res.status(200).json({ success: true, message: 'Order status updated', order: updated });
   } catch (err) {
-    console.error('❌ Update Order Status Error:', err);
+    console.error(' Update Order Status Error:', err);
     res.status(500).json({ success: false });
   }
 };

@@ -32,7 +32,7 @@ app.post(
   '/api/order/stripe-webhook',
   express.raw({ type: 'application/json' }),
   async (req, res, next) => {
-    console.log('🔔 Stripe Webhook Middleware Hit');
+    console.log(' Stripe Webhook Middleware Hit');
     console.log('Content-Type:', req.headers['content-type']);
     console.log('Stripe-Signature:', req.headers['stripe-signature'] ? 'Present' : 'Missing');
     console.log('Body is Buffer:', Buffer.isBuffer(req.body));
@@ -50,14 +50,14 @@ app.post(
 // PayPal webhook - can use express.json
 app.post('/api/order/paypal/webhook', express.json(), handlePaypalWebhook);
 
-// ✅ FIXED: Updated CORS configuration to include port 5174
+//  FIXED: Updated CORS configuration to include port 5174
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
-    ? ['https://your-domain.com'] // Replace with your production domain
+    ? ['https://your-domain.com'] 
     : [
         'http://localhost:3000',
         'http://localhost:5173', 
-        'http://localhost:5174', // ✅ Added this for your admin panel
+        'http://localhost:5174', 
         'http://127.0.0.1:5173',
         'http://127.0.0.1:5174'
       ],
@@ -172,10 +172,10 @@ app.use('*', (req, res) => {
 
 // Start server
 app.listen(port, () => {
-  console.log(`🚀 Server running on port ${port}`);
-  console.log(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🌐 CORS enabled for development ports: 3000, 5173, 5174`);
-  console.log('🔗 Available endpoints:');
+  console.log(` Server running on port ${port}`);
+  console.log(` Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(` CORS enabled for development ports: 3000, 5173, 5174`);
+  console.log(' Available endpoints:');
   console.log('  Health check:      /health');
   console.log('  Admin test:        /api/test-admin');
   console.log('  Admin login:       /api/users/admin');
@@ -188,18 +188,18 @@ app.listen(port, () => {
   console.log('  Wishlist sync:     /api/wishlist/sync');
   
   // Environment variables check
-  console.log('\n🔍 Environment Check:');
-  console.log('  MongoDB URL:', process.env.MONGODB_URL ? '✅ Configured' : '❌ Missing');
-  console.log('  Admin Email:', process.env.ADMIN_MAIL ? '✅ Configured' : '❌ Missing');
-  console.log('  Admin Password:', process.env.ADMIN_PASSWORD ? '✅ Configured' : '❌ Missing');
-  console.log('  JWT Code:', process.env.JWT_CODE ? '✅ Configured' : '❌ Missing');
+  console.log('\n Environment Check:');
+  console.log('  MongoDB URL:', process.env.MONGODB_URL ? ' Configured' : ' Missing');
+  console.log('  Admin Email:', process.env.ADMIN_MAIL ? ' Configured' : ' Missing');
+  console.log('  Admin Password:', process.env.ADMIN_PASSWORD ? ' Configured' : ' Missing');
+  console.log('  JWT Code:', process.env.JWT_CODE ? ' Configured' : ' Missing');
   
   // Environment-specific warnings
   if (process.env.NODE_ENV === 'production') {
     if (!process.env.STRIPE_WEBHOOK_SECRET) {
-      console.warn('⚠️  WARNING: STRIPE_WEBHOOK_SECRET not set in production!');
+      console.warn('  WARNING: STRIPE_WEBHOOK_SECRET not set in production!');
     }
   }
   
-  console.log('\n✨ Server is ready! Try accessing your admin panel now.');
+  
 });
