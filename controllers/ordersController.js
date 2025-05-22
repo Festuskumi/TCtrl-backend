@@ -4,7 +4,6 @@ import Stripe from 'stripe';
 import axios from 'axios';
 import sendEmail from '../utils/sendEmail.js';
 
-
 const stripe = new Stripe(process.env.STRIPE_KEY);
 const PAYPAL_CLIENT_ID = process.env.PAYPAL_CLIENT_ID;
 const PAYPAL_CLIENT_SECRET = process.env.PAYPAL_CLIENT_SECRET;
@@ -17,10 +16,7 @@ const postage_fee = 15;
 
 // Utility: Send order confirmation email
 const sendOrderConfirmationEmail = async (user, order) => {
-  const productList = order.products
-    .map(p => `<li>${p.title || 'Item'} x ${p.quantity} – £${p.price}</li>`)
-    .join('');
-
+  try {
     const logoUrl = 'https://res.cloudinary.com/dj3r6un9z/image/upload/v1746557604/tctrl/logo.png';
 
     const productRows = order.products
@@ -50,7 +46,7 @@ const sendOrderConfirmationEmail = async (user, order) => {
         </div>
     
         <h2 style="text-align: center;">Thank you for your order, ${user.name || 'Customer'}!</h2>
-        <p style="text-align: center;">We’ve received your order and will notify you once it ships.</p>
+        <p style="text-align: center;">We've received your order and will notify you once it ships.</p>
     
         <hr style="margin: 20px 0;" />
     
@@ -95,7 +91,11 @@ const sendOrderConfirmationEmail = async (user, order) => {
       </div>
     `;
 
-  await sendEmail(user.email, 'TCTRL Order Confirmation', emailHTML);
+    await sendEmail(user.email, 'TCTRL Order Confirmation', emailHTML);
+    console.log('✅ Order confirmation email sent successfully');
+  } catch (error) {
+    console.error('❌ Failed to send order confirmation email:', error);
+  }
 };
 
 // ---------------------------
@@ -105,7 +105,10 @@ const placeOrderCOD = async (req, res) => {
   try {
     const userId = req.userId;
     const { products, amount, address } = req.body;
-    if (!userId || !products?.length) return res.status(400).json({ success: false, message: 'Invalid order data.' });
+    
+    if (!userId || !products?.length) {
+      return res.status(400).json({ success: false, message: 'Invalid order data.' });
+    }
 
     const order = await ordersModel.create({
       userId,
@@ -138,7 +141,10 @@ const placeOrderStripe = async (req, res) => {
     const userId = req.userId;
     const { products, amount, address } = req.body;
     const origin = req.headers.origin || 'http://localhost:5173';
-    if (!userId || !products?.length) return res.status(400).json({ success: false, message: 'Invalid order data.' });
+    
+    if (!userId || !products?.length) {
+      return res.status(400).json({ success: false, message: 'Invalid order data.' });
+    }
 
     const lineItems = products.map(item => ({
       price_data: {
@@ -149,15 +155,29 @@ const placeOrderStripe = async (req, res) => {
       quantity: item.quantity,
     }));
 
+    // Add shipping as a separate line item
+    lineItems.push({
+      price_data: {
+        currency,
+        product_data: { name: 'Shipping' },
+        unit_amount: Math.round(postage_fee * 100),
+      },
+      quantity: 1,
+    });
+
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: lineItems,
       mode: 'payment',
       success_url: `${origin}/orders?success=true`,
       cancel_url: `${origin}/orders?cancel=true`,
+      metadata: {
+        userId: String(userId), // Convert to string
+        orderId: 'pending' // Will be updated after order creation
+      }
     });
 
-    await ordersModel.create({
+    const order = await ordersModel.create({
       userId,
       products,
       amount,
@@ -169,57 +189,104 @@ const placeOrderStripe = async (req, res) => {
       date: Date.now(),
     });
 
+    // Update session metadata with actual order ID
+    await stripe.checkout.sessions.update(session.id, {
+      metadata: {
+        userId: String(userId), // Convert to string
+        orderId: String(order._id) // Convert ObjectId to string
+      }
+    });
+
     await usersModels.findByIdAndUpdate(userId, { cartDetails: {} });
 
-    res.status(200).json({ success: true, message: 'Stripe session created', sessionId: session.id, url: session.url });
+    res.status(200).json({ 
+      success: true, 
+      message: 'Stripe session created', 
+      sessionId: session.id, 
+      url: session.url 
+    });
   } catch (err) {
     console.error('❌ Stripe Order Error:', err);
     res.status(500).json({ success: false, message: 'Failed to place order (Stripe)' });
   }
 };
 
-// Stripe Webhook Handler
+// Stripe Webhook Handler - FIXED
 const handleStripeWebhook = async (req, res) => {
   try {
     console.log('🔔 STRIPE WEBHOOK RECEIVED');
+    console.log('Headers:', req.headers);
+    console.log('Body type:', typeof req.body);
+    console.log('Body is Buffer:', Buffer.isBuffer(req.body));
 
     const rawBody = req.body;
     let event;
 
-    if (process.env.NODE_ENV === 'development') {
-      const jsonString = rawBody.toString('utf8');
-      event = JSON.parse(jsonString);
-    } else {
-      const sig = req.headers['stripe-signature'];
-      const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
-      event = stripe.webhooks.constructEvent(rawBody, sig, webhookSecret);
+    try {
+      if (process.env.NODE_ENV === 'development') {
+        // For development, parse JSON directly
+        const jsonString = Buffer.isBuffer(rawBody) ? rawBody.toString('utf8') : rawBody;
+        event = JSON.parse(jsonString);
+        console.log('📝 Development mode - parsed event type:', event.type);
+      } else {
+        // For production, verify webhook signature
+        const sig = req.headers['stripe-signature'];
+        const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+        
+        if (!webhookSecret) {
+          console.error('❌ Missing STRIPE_WEBHOOK_SECRET');
+          return res.status(500).json({ error: 'Webhook secret not configured' });
+        }
+        
+        event = stripe.webhooks.constructEvent(rawBody, sig, webhookSecret);
+        console.log('🔐 Production mode - verified event type:', event.type);
+      }
+    } catch (parseError) {
+      console.error('❌ Webhook parsing error:', parseError.message);
+      return res.status(400).json({ error: 'Invalid webhook payload' });
     }
 
+    // Handle the event
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object;
       const sessionId = session.id;
+      
+      console.log('💳 Processing completed session:', sessionId);
+      console.log('Session metadata:', session.metadata);
 
+      // Find and update the order
       const order = await ordersModel.findOneAndUpdate(
         { stripeSessionId: sessionId, payment: false },
-        { payment: true, status: 'Paid' },
+        { 
+          payment: true, 
+          status: 'Paid',
+          stripePaymentIntentId: session.payment_intent 
+        },
         { new: true }
       );
 
       if (order) {
+        console.log('✅ Order updated successfully:', order._id);
+        
+        // Send confirmation email
         const user = await usersModels.findById(order.userId);
         if (user) {
-          await sendOrderConfirmationEmail(user, order); // ✅ Sends email silently
+          await sendOrderConfirmationEmail(user, order);
         }
-        return res.status(200).json({ received: true, updated: true });
+        
+        return res.status(200).json({ received: true, updated: true, orderId: order._id });
+      } else {
+        console.log('⚠️ No order found for session:', sessionId);
+        return res.status(200).json({ received: true, updated: false, message: 'Order not found' });
       }
-
-      return res.status(200).json({ received: true, updated: false });
     }
 
-    return res.status(200).json({ received: true, ignored: true });
+    console.log('ℹ️ Webhook event ignored:', event.type);
+    return res.status(200).json({ received: true, ignored: true, eventType: event.type });
 
   } catch (err) {
     console.error('❌ Stripe Webhook Error:', err.message);
+    console.error('Stack trace:', err.stack);
     return res.status(500).json({ success: false, error: err.message });
   }
 };

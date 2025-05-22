@@ -88,11 +88,15 @@ const getUserCart = async (req, res) => {
 
     for (const productId in cartDetails) {
       for (const size in cartDetails[productId]) {
-        cartArray.push({
-          product: { _id: productId },
-          size,
-          quantity: cartDetails[productId][size],
-        });
+        const quantity = cartDetails[productId][size];
+        if (quantity > 0) { // Only include items with positive quantity
+          cartArray.push({
+            product: { _id: productId },
+            productId, // Add this for compatibility
+            size,
+            quantity: quantity,
+          });
+        }
       }
     }
 
@@ -124,9 +128,11 @@ const syncCartFromLocal = async (req, res) => {
     const newCart = { ...currentCart };
 
     items.forEach(({ productId, size, quantity }) => {
-      if (!newCart[productId]) newCart[productId] = {};
-      const current = newCart[productId][size] || 0;
-      newCart[productId][size] = Math.max(current, quantity);
+      if (productId && size && quantity > 0) { // Validate each item
+        if (!newCart[productId]) newCart[productId] = {};
+        const current = newCart[productId][size] || 0;
+        newCart[productId][size] = Math.max(current, quantity);
+      }
     });
 
     await usersModels.findByIdAndUpdate(userId, { cartDetails: newCart });
