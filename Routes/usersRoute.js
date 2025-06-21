@@ -6,8 +6,10 @@ import {
   verifyEmail,
   sendResetCode,
   verifyResetCode,
-  resetPasswordWithCode
+  resetPasswordWithCode, 
+  getAllUsers
 } from '../controllers/usersController.js';
+import adminVerify from '../middleware/adminverify.js';
 
 const usersRouter = express.Router();
 
@@ -22,6 +24,11 @@ usersRouter.post('/verify-code', verifyEmail);             // Verify email via c
 // 🔐 Admin Authentication
 // ===========================
 usersRouter.post('/admin', adminLogin);                    // Admin login
+
+// ===========================
+// 👥 Admin - Customer Management
+// ===========================
+usersRouter.get('/admin/customers', adminVerify, getAllUsers);  // Get all customers (Admin only)
 
 // ===========================
 // 🔁 Password Reset Workflow

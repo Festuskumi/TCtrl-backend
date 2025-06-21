@@ -191,6 +191,19 @@ const resetPasswordWithCode = async (req, res) => {
   res.json({ success: true, message: "Password has been reset successfully" });
 };
 
+// ----------------------
+// Get All Users (Admin Only)
+// ----------------------
+const getAllUsers = async (req, res) => {
+  try {
+    const users = await usersModels.find({}, 'name email isVerified createdAt');
+    res.status(200).json({ success: true, users });
+  } catch (err) {
+    console.error('Error fetching users:', err);
+    res.status(500).json({ success: false, message: 'Failed to fetch users' });
+  }
+};
+
 export {
   Userlogin,
   UserRegistration,
@@ -199,4 +212,5 @@ export {
   sendResetCode,
   verifyResetCode,
   resetPasswordWithCode,
+  getAllUsers
 };
